@@ -1,0 +1,11 @@
+# Plugin runtime state — contains vault file paths, excluded from repo
+data.json
+
+# Build output
+main.js
+
+# Dependencies
+node_modules/
+
+# macOS
+.DS_Store
