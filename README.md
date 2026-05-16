@@ -22,22 +22,26 @@ A sidebar panel that tracks **which files were created or modified** in your vau
 
 ## Installation
 
-### From source (manual)
+1. Download `main.js`, `manifest.json`, and `styles.css` from the latest release
+2. Copy them into your vault at `.obsidian/plugins/file-watch/`
+3. In Obsidian, go to **Settings → Community plugins**
+4. Disable Safe Mode if prompted
+5. Enable **File Watch**
+
+---
+
+## For developers
+
+### Build from source
 
 ```bash
-# 1. Clone / copy this folder into your vault's plugins directory
-cp -r obsidian-file-watch /path/to/your/vault/.obsidian/plugins/file-watch
-
-# 2. Install dependencies and build
-cd /path/to/your/vault/.obsidian/plugins/file-watch
+git clone https://github.com/pauldenni/file-watch
+cd file-watch
 npm install
 npm run build
 ```
 
-Then in Obsidian:
-1. Go to **Settings → Community plugins**
-2. Disable Safe Mode if prompted
-3. Enable **File Watch**
+Copy the output (`main.js`, `manifest.json`, `styles.css`) into your vault's `.obsidian/plugins/file-watch/` folder, then enable the plugin as above.
 
 ### Dev mode (hot-reload)
 
