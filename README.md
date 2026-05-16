@@ -83,10 +83,11 @@ It's a heuristic, not perfect — if you save a file within 2 seconds of alt-tab
 ## File structure
 
 ```
-obsidian-file-watch/
-├── main.ts          ← All plugin logic
-├── styles.css       ← Sidebar panel styles
-├── manifest.json    ← Plugin metadata
+file-watch/
+├── main.ts              ← Source (TypeScript)
+├── main.js              ← Compiled plugin (committed for easy install)
+├── styles.css           ← Sidebar panel styles
+├── manifest.json        ← Plugin metadata
 ├── package.json
 ├── esbuild.config.mjs
 └── tsconfig.json
