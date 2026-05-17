@@ -1,7 +1,7 @@
 /* ─── File Watch Plugin Styles ────────────────────────────────────────────── */
 
 /* Container */
-.file-watch-container {
+.filewatch-container {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -10,7 +10,7 @@
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
-.file-watch-header {
+.filewatch-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -22,7 +22,7 @@
   z-index: 1;
 }
 
-.file-watch-title {
+.filewatch-title {
   font-size: var(--font-ui-small);
   font-weight: 600;
   color: var(--text-muted);
@@ -30,12 +30,12 @@
   letter-spacing: 0.06em;
 }
 
-.file-watch-actions {
+.filewatch-actions {
   display: flex;
   gap: 4px;
 }
 
-.file-watch-btn {
+.filewatch-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -47,13 +47,13 @@
   transition: background 0.12s, color 0.12s;
 }
 
-.file-watch-btn:hover {
+.filewatch-btn:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
 /* ── Empty state ─────────────────────────────────────────────────────────── */
-.file-watch-empty {
+.filewatch-empty {
   padding: 24px 16px;
   text-align: center;
   color: var(--text-faint);
@@ -61,14 +61,14 @@
 }
 
 /* ── List ────────────────────────────────────────────────────────────────── */
-.file-watch-list {
+.filewatch-list {
   overflow-y: auto;
   flex: 1;
   padding: 4px 0;
 }
 
 /* ── Row ─────────────────────────────────────────────────────────────────── */
-.file-watch-row {
+.filewatch-row {
   display: grid;
   grid-template-columns: 36px 36px 1fr auto;
   align-items: center;
@@ -78,12 +78,12 @@
   transition: background 0.1s;
 }
 
-.file-watch-row:hover {
+.filewatch-row:hover {
   background: var(--background-modifier-hover);
 }
 
 /* ── Kind badge (NEW / MOD) ──────────────────────────────────────────────── */
-.file-watch-kind {
+.filewatch-kind {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -93,34 +93,34 @@
   flex-shrink: 0;
 }
 
-.file-watch-kind--created {
+.filewatch-kind--created {
   background: var(--color-green-rgb, 74, 158, 93);
   background: rgba(74, 158, 93, 0.18);
   color: var(--color-green, #4a9e5d);
   border: 1px solid rgba(74, 158, 93, 0.35);
 }
 
-.file-watch-kind--modified {
+.filewatch-kind--modified {
   background: rgba(218, 165, 32, 0.15);
   color: #c9971a;
   border: 1px solid rgba(218, 165, 32, 0.3);
 }
 
 /* Dark theme adjustments */
-.theme-dark .file-watch-kind--created {
+.theme-dark .filewatch-kind--created {
   background: rgba(74, 158, 93, 0.22);
   color: #6ecf85;
   border-color: rgba(74, 158, 93, 0.4);
 }
 
-.theme-dark .file-watch-kind--modified {
+.theme-dark .filewatch-kind--modified {
   background: rgba(218, 165, 32, 0.18);
   color: #e8b733;
   border-color: rgba(218, 165, 32, 0.35);
 }
 
 /* ── Source badge (YOU / EXT) ────────────────────────────────────────────── */
-.file-watch-source {
+.filewatch-source {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -130,54 +130,54 @@
   flex-shrink: 0;
 }
 
-.file-watch-source--local {
+.filewatch-source--local {
   background: rgba(100, 148, 237, 0.15);
   color: #6494ed;
   border: 1px solid rgba(100, 148, 237, 0.3);
 }
 
-.file-watch-source--remote {
+.filewatch-source--remote {
   background: rgba(195, 95, 220, 0.15);
   color: #c35fdc;
   border: 1px solid rgba(195, 95, 220, 0.3);
 }
 
-.theme-dark .file-watch-source--local {
+.theme-dark .filewatch-source--local {
   background: rgba(100, 148, 237, 0.2);
   color: #8db0f5;
 }
 
-.theme-dark .file-watch-source--remote {
+.theme-dark .filewatch-source--remote {
   background: rgba(195, 95, 220, 0.2);
   color: #d98cee;
 }
 
 /* ── File name ───────────────────────────────────────────────────────────── */
-.file-watch-name {
+.filewatch-name {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   min-width: 0;
 }
 
-.file-watch-folder {
+.filewatch-folder {
   color: var(--text-faint);
   font-size: var(--font-ui-smaller);
 }
 
-.file-watch-link {
+.filewatch-link {
   color: var(--text-normal);
   text-decoration: none;
   cursor: pointer;
 }
 
-.file-watch-link:hover {
+.filewatch-link:hover {
   color: var(--text-accent);
   text-decoration: underline;
 }
 
 /* ── Timestamp ───────────────────────────────────────────────────────────── */
-.file-watch-ts {
+.filewatch-ts {
   color: var(--text-faint);
   font-size: var(--font-ui-smaller);
   white-space: nowrap;
@@ -185,7 +185,7 @@
 }
 
 /* ── Tab badge (unseen count) ────────────────────────────────────────────── */
-.file-watch-badge {
+.filewatch-badge {
   position: absolute;
   top: 2px;
   right: 2px;
@@ -208,13 +208,13 @@
 }
 
 /* ── Tab pulse animation ─────────────────────────────────────────────────── */
-@keyframes file-watch-pulse {
+@keyframes filewatch-pulse {
   0%   { background: transparent; }
   30%  { background: rgba(var(--color-accent-rgb, 100, 148, 237), 0.25); }
   100% { background: transparent; }
 }
 
-.file-watch-tab-pulse {
-  animation: file-watch-pulse 1.2s ease-out forwards;
+.filewatch-tab-pulse {
+  animation: filewatch-pulse 1.2s ease-out forwards;
   border-radius: var(--radius-s);
 }

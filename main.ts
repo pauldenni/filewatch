@@ -43,7 +43,7 @@ const DEFAULT_SETTINGS: FileWatchSettings = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const VIEW_TYPE = "file-watch-view";
+export const VIEW_TYPE = "filewatch-view";
 
 // ─── Sidebar View ─────────────────────────────────────────────────────────────
 
@@ -73,17 +73,17 @@ export class FileWatchView extends ItemView {
   async onOpen() {
     const container = this.containerEl.children[1] as HTMLElement;
     container.empty();
-    container.addClass("file-watch-container");
+    container.addClass("filewatch-container");
 
     // Header
-    const header = container.createDiv({ cls: "file-watch-header" });
-    header.createEl("span", { text: "File Watch", cls: "file-watch-title" });
+    const header = container.createDiv({ cls: "filewatch-header" });
+    header.createEl("span", { text: "File Watch", cls: "filewatch-title" });
 
-    const actions = header.createDiv({ cls: "file-watch-actions" });
+    const actions = header.createDiv({ cls: "filewatch-actions" });
 
     // Clear button
     const clearBtn = actions.createEl("button", {
-      cls: "file-watch-btn",
+      cls: "filewatch-btn",
       attr: { "aria-label": "Clear list" },
     });
     setIcon(clearBtn, "trash-2");
@@ -96,7 +96,7 @@ export class FileWatchView extends ItemView {
     });
 
     // List
-    this.listEl = container.createDiv({ cls: "file-watch-list" });
+    this.listEl = container.createDiv({ cls: "filewatch-list" });
     this.render();
   }
 
@@ -110,7 +110,7 @@ export class FileWatchView extends ItemView {
 
     if (events.length === 0) {
       this.listEl.createDiv({
-        cls: "file-watch-empty",
+        cls: "filewatch-empty",
         text: "No file changes recorded yet.",
       });
       return;
@@ -120,32 +120,32 @@ export class FileWatchView extends ItemView {
     const sorted = [...events].sort((a, b) => b.ts - a.ts);
 
     for (const ev of sorted) {
-      const row = this.listEl.createDiv({ cls: "file-watch-row" });
+      const row = this.listEl.createDiv({ cls: "filewatch-row" });
 
       // Kind badge
       const kindBadge = row.createDiv({
-        cls: `file-watch-kind file-watch-kind--${ev.kind}`,
+        cls: `filewatch-kind filewatch-kind--${ev.kind}`,
         text: ev.kind === "created" ? "NEW" : "MOD",
         attr: { "aria-label": ev.kind === "created" ? "New file created" : "File modified" },
       });
 
       // Source badge
       row.createDiv({
-        cls: `file-watch-source file-watch-source--${ev.source}`,
+        cls: `filewatch-source filewatch-source--${ev.source}`,
         text: ev.source === "remote" ? "EXT" : "YOU",
         attr: { "aria-label": ev.source === "remote" ? "External / Claude" : "You" },
       });
 
       // File name (clickable)
-      const name = row.createDiv({ cls: "file-watch-name" });
+      const name = row.createDiv({ cls: "filewatch-name" });
       const parts = ev.path.split("/");
       const filename = parts.pop() ?? ev.path;
       const folder = parts.join("/");
 
       if (folder) {
-        name.createSpan({ cls: "file-watch-folder", text: folder + "/" });
+        name.createSpan({ cls: "filewatch-folder", text: folder + "/" });
       }
-      const link = name.createEl("a", { cls: "file-watch-link", text: filename });
+      const link = name.createEl("a", { cls: "filewatch-link", text: filename });
       link.addEventListener("click", (e) => {
         e.preventDefault();
         const file = this.app.vault.getAbstractFileByPath(ev.path);
@@ -157,7 +157,7 @@ export class FileWatchView extends ItemView {
       // Timestamp
       if (this.plugin.settings.showTimestamps) {
         row.createDiv({
-          cls: "file-watch-ts",
+          cls: "filewatch-ts",
           text: this.formatTs(ev.ts),
           attr: { title: new Date(ev.ts).toLocaleString() },
         });
@@ -182,12 +182,12 @@ export class FileWatchView extends ItemView {
     const leafEl = (this.leaf as any).tabHeaderEl as HTMLElement | undefined;
 
     // Remove old badge
-    const existing = leafEl?.querySelector(".file-watch-badge");
+    const existing = leafEl?.querySelector(".filewatch-badge");
     existing?.remove();
 
     const count = this.unseenPaths.size;
     if (count > 0 && leafEl) {
-      const badge = leafEl.createDiv({ cls: "file-watch-badge" });
+      const badge = leafEl.createDiv({ cls: "filewatch-badge" });
       badge.setText(String(count > 99 ? "99+" : count));
     }
   }
@@ -203,8 +203,8 @@ export class FileWatchView extends ItemView {
   private pulseTab() {
     const tabEl = (this.leaf as any).tabHeaderEl as HTMLElement | undefined;
     if (!tabEl) return;
-    tabEl.addClass("file-watch-tab-pulse");
-    setTimeout(() => tabEl.removeClass("file-watch-tab-pulse"), 1200);
+    tabEl.addClass("filewatch-tab-pulse");
+    setTimeout(() => tabEl.removeClass("filewatch-tab-pulse"), 1200);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -215,7 +215,7 @@ export class FileWatchView extends ItemView {
     if (diff < 60_000) return "just now";
     if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
     if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-    return moment(ts).format("MMM D");
+    return (moment as any)(ts).format("MMM D");
   }
 }
 
