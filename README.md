@@ -2,7 +2,7 @@
 
 A sidebar panel that tracks **which files were created or modified** in your vault — including changes made by external tools like Claude running in your terminal.
 
-![File Watch sidebar panel showing NEW/MOD badges and YOU/EXT source labels]
+![FileWatch sidebar panel showing NEW/MOD badges and YOU/EXT source labels](assets/filewatch.png)
 
 ---
 
