@@ -29,6 +29,7 @@ interface FileWatchSettings {
   showTimestamps: boolean;
   remoteWindowMs: number; // ms after a vault modify with no active window = "remote"
   highlightOnChange: boolean;
+  persistHistory: boolean;
   events: FileEvent[];
 }
 
@@ -38,6 +39,7 @@ const DEFAULT_SETTINGS: FileWatchSettings = {
   showTimestamps: true,
   remoteWindowMs: 2000,
   highlightOnChange: true,
+  persistHistory: true,
   events: [],
 };
 
@@ -231,6 +233,11 @@ export default class FileWatchPlugin extends Plugin {
 
   async onload() {
     await this.loadSettings();
+
+    if (!this.settings.persistHistory) {
+      this.settings.events = [];
+      await this.saveSettings();
+    }
 
     // Register sidebar view
     this.registerView(VIEW_TYPE, (leaf) => new FileWatchView(leaf, this));
@@ -470,6 +477,21 @@ class FileWatchSettingTab extends PluginSettingTab {
               this.plugin.settings.remoteWindowMs = parsed;
               await this.plugin.saveSettings();
             }
+          });
+      });
+
+    // ── Persist history ─────────────────────────────────────────────────────
+    new Setting(containerEl)
+      .setName("Persist history across restarts")
+      .setDesc(
+        "When enabled, the file change list is saved and restored when Obsidian restarts. Turn this off to start each session with a fresh list. Changes take effect on the next restart."
+      )
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.persistHistory)
+          .onChange(async (val) => {
+            this.plugin.settings.persistHistory = val;
+            await this.plugin.saveSettings();
           });
       });
 
