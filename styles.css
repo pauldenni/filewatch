@@ -208,7 +208,8 @@
 }
 
 /* ── File Explorer dots ──────────────────────────────────────────────────── */
-.filewatch-dot {
+[data-filewatch-dot]::after {
+  content: "";
   display: inline-block;
   width: 6px;
   height: 6px;
@@ -218,19 +219,19 @@
   vertical-align: middle;
 }
 
-.filewatch-dot--local {
+[data-filewatch-dot="local"]::after {
   background: #6494ed;
 }
 
-.filewatch-dot--remote {
+[data-filewatch-dot="remote"]::after {
   background: #c35fdc;
 }
 
-.theme-dark .filewatch-dot--local {
+.theme-dark [data-filewatch-dot="local"]::after {
   background: #8db0f5;
 }
 
-.theme-dark .filewatch-dot--remote {
+.theme-dark [data-filewatch-dot="remote"]::after {
   background: #d98cee;
 }
 

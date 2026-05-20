@@ -231,8 +231,8 @@ export default class FileWatchPlugin extends Plugin {
 
   private lastWindowActiveMs = Date.now();
   private localTouched = new Set<string>();
-  // Paths the user has opened since the change — dot is suppressed until the file changes again
   private seenPaths = new Set<string>();
+  private decorateTimer: number | null = null;
 
   async onload() {
     await this.loadSettings();
@@ -277,6 +277,34 @@ export default class FileWatchPlugin extends Plugin {
       this.app.vault.on("modify", (file: TAbstractFile) => {
         if (!(file instanceof TFile)) return;
         this.handleEvent(file, "modified");
+      })
+    );
+
+    this.registerEvent(
+      this.app.vault.on("rename", (file: TAbstractFile, oldPath: string) => {
+        const oldPrefix = oldPath + "/";
+        let changed = false;
+        for (const ev of this.settings.events) {
+          if (ev.path === oldPath) {
+            ev.path = file.path;
+            changed = true;
+          } else if (ev.path.startsWith(oldPrefix)) {
+            ev.path = file.path + "/" + ev.path.slice(oldPrefix.length);
+            changed = true;
+          }
+        }
+        if (this.seenPaths.delete(oldPath)) this.seenPaths.add(file.path);
+        for (const p of [...this.seenPaths]) {
+          if (p.startsWith(oldPrefix)) {
+            this.seenPaths.delete(p);
+            this.seenPaths.add(file.path + "/" + p.slice(oldPrefix.length));
+          }
+        }
+        if (changed) {
+          this.saveSettings();
+          this.getView()?.render();
+        }
+        this.decorateFileExplorer();
       })
     );
 
@@ -400,15 +428,29 @@ export default class FileWatchPlugin extends Plugin {
   // ── File Explorer decoration ────────────────────────────────────────────────
 
   decorateFileExplorer() {
-    const explorerLeaf = this.app.workspace.getLeavesOfType("file-explorer")[0];
-    // Always clear all dots first, regardless of the setting
-    document.querySelectorAll(".filewatch-dot").forEach((el) => el.remove());
+    // Synchronously clear all dot attributes so stale indicators never linger
+    document.querySelectorAll("[data-filewatch-dot]").forEach((el) =>
+      el.removeAttribute("data-filewatch-dot")
+    );
 
-    if (!explorerLeaf || !this.settings.showExplorerDots) return;
+    if (this.decorateTimer !== null) {
+      window.clearTimeout(this.decorateTimer);
+      this.decorateTimer = null;
+    }
+    if (!this.settings.showExplorerDots) return;
+
+    // Defer re-addition so Obsidian's file explorer DOM settles after vault events
+    this.decorateTimer = window.setTimeout(() => {
+      this.decorateTimer = null;
+      this.applyDots();
+    }, 100);
+  }
+
+  private applyDots() {
+    const explorerLeaf = this.app.workspace.getLeavesOfType("file-explorer")[0];
+    if (!explorerLeaf) return;
 
     const explorerView = explorerLeaf.view as any;
-
-    // fileItems is Obsidian's internal path→element map used by most decorator plugins
     const fileItems = explorerView.fileItems as Record<string, any> | undefined;
     if (!fileItems) return;
 
@@ -429,18 +471,16 @@ export default class FileWatchPlugin extends Plugin {
       }
     }
 
-    // Track which DOM nodes have already received a dot so that paths sharing a
-    // container element (item.el fallback) never produce more than one dot.
     const decorated = new Set<HTMLElement>();
-
     for (const [path, source] of toDecorate) {
       const item = fileItems[path];
       if (!item) continue;
-      // titleEl is the clickable title row; fall back to el if not present
       const titleEl: HTMLElement | undefined = item.titleEl ?? item.selfEl ?? item.el;
       if (!titleEl || decorated.has(titleEl)) continue;
       decorated.add(titleEl);
-      titleEl.createSpan({ cls: `filewatch-dot filewatch-dot--${source}` });
+      // Using a data attribute + CSS ::after avoids child-span accumulation entirely —
+      // setting the same attribute twice just overwrites it
+      titleEl.setAttribute("data-filewatch-dot", source);
     }
   }
 
