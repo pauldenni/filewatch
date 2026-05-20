@@ -12,6 +12,7 @@ A sidebar panel that tracks **which files were created or modified** in your vau
 - **Source detection** — distinguishes changes made *by you* (Obsidian active) vs *externally* (Claude, scripts, git) using a window-focus heuristic
 - **Kind badges** — green **NEW** for created files, amber **MOD** for modified files
 - **Source badges** — blue **YOU** for local changes, purple **EXT** for external/remote changes
+- **File explorer dots** — a small colored dot appears next to changed files (and their parent folders) directly in the Files panel; opening a file clears its dot
 - **Tab badge** — unseen-count bubble appears on the sidebar tab when new changes arrive while you're elsewhere
 - **Tab pulse** — the tab flashes when a change is detected (can be disabled)
 - **Click to open** — click any file name to open it in the editor
@@ -62,6 +63,8 @@ This watches `main.ts` for changes and rebuilds automatically.
 | **Show timestamps** | Display relative time next to each entry | On |
 | **Highlight tab on change** | Flash the tab on new changes (badge always shows regardless) | On |
 | **Remote detection window (ms)** | How long after the window loses focus before changes count as "external" | 2000 |
+| **Persist history across restarts** | Restore the event list when Obsidian reopens | On |
+| **Show dots in Files panel** | Display colored dots next to changed files and folders in the Files panel | Off |
 
 ---
 
