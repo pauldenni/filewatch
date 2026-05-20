@@ -281,6 +281,24 @@ export default class FileWatchPlugin extends Plugin {
     );
 
     this.registerEvent(
+      this.app.vault.on("delete", (file: TAbstractFile) => {
+        const pathPrefix = file.path + "/";
+        const before = this.settings.events.length;
+        this.settings.events = this.settings.events.filter(
+          (e) => e.path !== file.path && !e.path.startsWith(pathPrefix)
+        );
+        for (const p of [...this.seenPaths]) {
+          if (p === file.path || p.startsWith(pathPrefix)) this.seenPaths.delete(p);
+        }
+        if (this.settings.events.length !== before) {
+          this.saveSettings();
+          this.getView()?.render();
+          this.decorateFileExplorer();
+        }
+      })
+    );
+
+    this.registerEvent(
       this.app.vault.on("create", (file: TAbstractFile) => {
         if (!(file instanceof TFile)) return;
         // Obsidian fires "create" for existing files on startup; skip those
@@ -384,15 +402,12 @@ export default class FileWatchPlugin extends Plugin {
   decorateFileExplorer() {
     const explorerLeaf = this.app.workspace.getLeavesOfType("file-explorer")[0];
     if (!explorerLeaf) return;
-    if (!this.settings.showExplorerDots) {
-      explorerLeaf.view.containerEl.querySelectorAll(".filewatch-dot").forEach((el) => el.remove());
-      return;
-    }
-    const explorerView = explorerLeaf.view as any;
-    const explorerEl = explorerView.containerEl as HTMLElement;
+    // Always clear all dots first, regardless of the setting
+    document.querySelectorAll(".filewatch-dot").forEach((el) => el.remove());
 
-    // Remove existing dots
-    explorerEl.querySelectorAll(".filewatch-dot").forEach((el) => el.remove());
+    if (!this.settings.showExplorerDots) return;
+
+    const explorerView = explorerLeaf.view as any;
 
     // fileItems is Obsidian's internal path→element map used by most decorator plugins
     const fileItems = explorerView.fileItems as Record<string, any> | undefined;
