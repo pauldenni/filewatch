@@ -209,11 +209,13 @@
 
 /* ── File Explorer dots ──────────────────────────────────────────────────── */
 .filewatch-dot {
+  display: inline-block;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   margin-left: 5px;
   flex-shrink: 0;
+  vertical-align: middle;
 }
 
 .filewatch-dot--local {
