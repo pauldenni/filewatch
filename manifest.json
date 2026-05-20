@@ -1,7 +1,7 @@
 {
   "id": "filewatch",
   "name": "FileWatch",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "minAppVersion": "1.0.0",
   "description": "Tracks recently created and modified files in a sidebar panel — including changes made by external tools like Claude.",
   "author": "Paul Denni",

@@ -1,6 +1,6 @@
 {
   "name": "obsidian-filewatch",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Tracks file changes (including external/Claude) in a sidebar panel",
   "main": "main.js",
   "scripts": {
