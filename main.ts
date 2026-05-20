@@ -401,11 +401,10 @@ export default class FileWatchPlugin extends Plugin {
 
   decorateFileExplorer() {
     const explorerLeaf = this.app.workspace.getLeavesOfType("file-explorer")[0];
-    if (!explorerLeaf) return;
     // Always clear all dots first, regardless of the setting
     document.querySelectorAll(".filewatch-dot").forEach((el) => el.remove());
 
-    if (!this.settings.showExplorerDots) return;
+    if (!explorerLeaf || !this.settings.showExplorerDots) return;
 
     const explorerView = explorerLeaf.view as any;
 
@@ -430,12 +429,17 @@ export default class FileWatchPlugin extends Plugin {
       }
     }
 
+    // Track which DOM nodes have already received a dot so that paths sharing a
+    // container element (item.el fallback) never produce more than one dot.
+    const decorated = new Set<HTMLElement>();
+
     for (const [path, source] of toDecorate) {
       const item = fileItems[path];
       if (!item) continue;
       // titleEl is the clickable title row; fall back to el if not present
       const titleEl: HTMLElement | undefined = item.titleEl ?? item.selfEl ?? item.el;
-      if (!titleEl) continue;
+      if (!titleEl || decorated.has(titleEl)) continue;
+      decorated.add(titleEl);
       titleEl.createSpan({ cls: `filewatch-dot filewatch-dot--${source}` });
     }
   }
