@@ -207,6 +207,31 @@
   position: relative;
 }
 
+/* ── File Explorer dots ──────────────────────────────────────────────────── */
+.filewatch-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-left: 5px;
+  flex-shrink: 0;
+}
+
+.filewatch-dot--local {
+  background: #6494ed;
+}
+
+.filewatch-dot--remote {
+  background: #c35fdc;
+}
+
+.theme-dark .filewatch-dot--local {
+  background: #8db0f5;
+}
+
+.theme-dark .filewatch-dot--remote {
+  background: #d98cee;
+}
+
 /* ── Tab pulse animation ─────────────────────────────────────────────────── */
 @keyframes filewatch-pulse {
   0%   { background: transparent; }

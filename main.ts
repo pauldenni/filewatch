@@ -30,6 +30,7 @@ interface FileWatchSettings {
   remoteWindowMs: number; // ms after a vault modify with no active window = "remote"
   highlightOnChange: boolean;
   persistHistory: boolean;
+  showExplorerDots: boolean;
   events: FileEvent[];
 }
 
@@ -40,6 +41,7 @@ const DEFAULT_SETTINGS: FileWatchSettings = {
   remoteWindowMs: 2000,
   highlightOnChange: true,
   persistHistory: true,
+  showExplorerDots: false,
   events: [],
 };
 
@@ -95,6 +97,7 @@ export class FileWatchView extends ItemView {
       this.unseenPaths.clear();
       this.updateBadge();
       this.render();
+      this.plugin.decorateFileExplorer();
     });
 
     // List
@@ -226,10 +229,10 @@ export class FileWatchView extends ItemView {
 export default class FileWatchPlugin extends Plugin {
   settings!: FileWatchSettings;
 
-  // Track last time the Obsidian window was focused/active
   private lastWindowActiveMs = Date.now();
-  // File paths we know were opened/saved by the user this session
   private localTouched = new Set<string>();
+  // Paths the user has opened since the change — dot is suppressed until the file changes again
+  private seenPaths = new Set<string>();
 
   async onload() {
     await this.loadSettings();
@@ -258,7 +261,13 @@ export default class FileWatchPlugin extends Plugin {
     // Track files the user explicitly opens (marks as "could be local")
     this.registerEvent(
       this.app.workspace.on("file-open", (file) => {
-        if (file) this.localTouched.add(file.path);
+        if (!file) return;
+        this.localTouched.add(file.path);
+        const isTracked = this.settings.events.some((e) => e.path === file.path);
+        if (isTracked && !this.seenPaths.has(file.path)) {
+          this.seenPaths.add(file.path);
+          this.decorateFileExplorer();
+        }
       })
     );
 
@@ -287,8 +296,12 @@ export default class FileWatchPlugin extends Plugin {
     // Open the view on first launch
     if (this.app.workspace.layoutReady) {
       this.activateView();
+      this.decorateFileExplorer();
     } else {
-      this.app.workspace.onLayoutReady(() => this.activateView());
+      this.app.workspace.onLayoutReady(() => {
+        this.activateView();
+        this.decorateFileExplorer();
+      });
     }
 
     // Clear badge when user focuses the view
@@ -330,8 +343,10 @@ export default class FileWatchPlugin extends Plugin {
       }
     }
 
+    this.seenPaths.delete(file.path);
     this.saveSettings();
     this.getView()?.onNewEvent(file.path);
+    this.decorateFileExplorer();
   }
 
   /**
@@ -362,6 +377,52 @@ export default class FileWatchPlugin extends Plugin {
   getView(): FileWatchView | null {
     const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE)[0];
     return leaf ? (leaf.view as FileWatchView) : null;
+  }
+
+  // ── File Explorer decoration ────────────────────────────────────────────────
+
+  decorateFileExplorer() {
+    const explorerLeaf = this.app.workspace.getLeavesOfType("file-explorer")[0];
+    if (!explorerLeaf) return;
+    if (!this.settings.showExplorerDots) {
+      explorerLeaf.view.containerEl.querySelectorAll(".filewatch-dot").forEach((el) => el.remove());
+      return;
+    }
+    const explorerView = explorerLeaf.view as any;
+    const explorerEl = explorerView.containerEl as HTMLElement;
+
+    // Remove existing dots
+    explorerEl.querySelectorAll(".filewatch-dot").forEach((el) => el.remove());
+
+    // fileItems is Obsidian's internal path→element map used by most decorator plugins
+    const fileItems = explorerView.fileItems as Record<string, any> | undefined;
+    if (!fileItems) return;
+
+    // Build the full set of paths to dot: each unseen file plus every ancestor folder.
+    // If a folder contains both local and remote changes, remote (purple) wins.
+    const toDecorate = new Map<string, "local" | "remote">();
+    for (const ev of this.settings.events) {
+      if (this.seenPaths.has(ev.path)) continue;
+      if (!toDecorate.has(ev.path) || ev.source === "remote") {
+        toDecorate.set(ev.path, ev.source);
+      }
+      const parts = ev.path.split("/");
+      for (let i = 1; i < parts.length; i++) {
+        const folderPath = parts.slice(0, i).join("/");
+        if (!toDecorate.has(folderPath) || ev.source === "remote") {
+          toDecorate.set(folderPath, ev.source);
+        }
+      }
+    }
+
+    for (const [path, source] of toDecorate) {
+      const item = fileItems[path];
+      if (!item) continue;
+      // titleEl is the clickable title row; fall back to el if not present
+      const titleEl: HTMLElement | undefined = item.titleEl ?? item.selfEl ?? item.el;
+      if (!titleEl) continue;
+      titleEl.createSpan({ cls: `filewatch-dot filewatch-dot--${source}` });
+    }
   }
 
   // ── Settings persistence ────────────────────────────────────────────────────
@@ -495,6 +556,22 @@ class FileWatchSettingTab extends PluginSettingTab {
           });
       });
 
+    // ── Explorer dots ───────────────────────────────────────────────────────
+    new Setting(containerEl)
+      .setName("Show dots in Files panel")
+      .setDesc(
+        "Display a small colored dot next to recently changed files in the Files panel. Blue = you, purple = external."
+      )
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.showExplorerDots)
+          .onChange(async (val) => {
+            this.plugin.settings.showExplorerDots = val;
+            await this.plugin.saveSettings();
+            this.plugin.decorateFileExplorer();
+          });
+      });
+
     // ── Clear button ────────────────────────────────────────────────────────
     new Setting(containerEl)
       .setName("Clear all recorded events")
@@ -507,6 +584,7 @@ class FileWatchSettingTab extends PluginSettingTab {
             this.plugin.settings.events = [];
             await this.plugin.saveSettings();
             this.plugin.getView()?.render();
+            this.plugin.decorateFileExplorer();
           });
       });
   }
