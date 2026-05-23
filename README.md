@@ -11,8 +11,9 @@ A sidebar panel that tracks **which files were created or modified** in your vau
 - **Live sidebar panel** — lists every created/modified file, newest first
 - **Source detection** — distinguishes changes made *by you* (Obsidian active) vs *externally* (Claude, scripts, git) using a window-focus heuristic
 - **Kind badges** — green **NEW** for created files, amber **MOD** for modified files
-- **Source badges** — blue **YOU** for local changes, purple **EXT** for external/remote changes
+- **Source badges** — **YOU** for local changes, **EXT** for external/remote changes (labels and colors are customizable)
 - **File explorer dots** — a small colored dot appears next to changed files (and their parent folders) directly in the Files panel; opening a file clears its dot
+- **Appearance customization** — set your own colors for the "you" and "external" roles, adjust dot size, and rename the badge labels; changes apply instantly
 - **Tab badge** — unseen-count bubble appears on the sidebar tab when new changes arrive while you're elsewhere
 - **Tab pulse** — the tab flashes when a change is detected (can be disabled)
 - **Click to open** — click any file name to open it in the editor
@@ -65,6 +66,12 @@ This watches `main.ts` for changes and rebuilds automatically.
 | **Remote detection window (ms)** | How long after the window loses focus before changes count as "external" | 2000 |
 | **Persist history across restarts** | Restore the event list when Obsidian reopens | On |
 | **Show dots in Files panel** | Display colored dots next to changed files and folders in the Files panel | Off |
+| **"You" label** | Text on the badge for your own changes | YOU |
+| **"You" color** | Color for your own change badges and explorer dots | Blue |
+| **"External" label** | Text on the badge for externally-made changes | EXT |
+| **"External" color** | Color for external change badges and explorer dots | Purple |
+| **Explorer dot size** | Diameter of the indicator dots in the Files panel (4–12 px) | 6 |
+| **Reset appearance to defaults** | Restore default colors, dot size, and labels | — |
 
 ---
 
