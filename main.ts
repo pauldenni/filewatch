@@ -31,6 +31,11 @@ interface FileWatchSettings {
   highlightOnChange: boolean;
   persistHistory: boolean;
   showExplorerDots: boolean;
+  localColor: string;
+  remoteColor: string;
+  dotSize: number;
+  localLabel: string;
+  remoteLabel: string;
   events: FileEvent[];
 }
 
@@ -42,12 +47,37 @@ const DEFAULT_SETTINGS: FileWatchSettings = {
   highlightOnChange: true,
   persistHistory: true,
   showExplorerDots: false,
+  localColor: "#6494ed",
+  remoteColor: "#c35fdc",
+  dotSize: 6,
+  localLabel: "YOU",
+  remoteLabel: "EXT",
   events: [],
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const VIEW_TYPE = "filewatch-view";
+
+// ─── Theme helpers ────────────────────────────────────────────────────────────
+
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function buildThemeStyle(localColor: string, remoteColor: string, dotSize: number): string {
+  return [
+    `.filewatch-source--local{background:${hexToRgba(localColor, 0.15)};color:${localColor};border-color:${hexToRgba(localColor, 0.3)}}`,
+    `.theme-dark .filewatch-source--local{background:${hexToRgba(localColor, 0.2)};color:${localColor}}`,
+    `.filewatch-source--remote{background:${hexToRgba(remoteColor, 0.15)};color:${remoteColor};border-color:${hexToRgba(remoteColor, 0.3)}}`,
+    `.theme-dark .filewatch-source--remote{background:${hexToRgba(remoteColor, 0.2)};color:${remoteColor}}`,
+    `[data-filewatch-dot="local"]::after{background:${localColor};width:${dotSize}px;height:${dotSize}px}`,
+    `[data-filewatch-dot="remote"]::after{background:${remoteColor};width:${dotSize}px;height:${dotSize}px}`,
+  ].join("\n");
+}
 
 // ─── Sidebar View ─────────────────────────────────────────────────────────────
 
@@ -137,7 +167,7 @@ export class FileWatchView extends ItemView {
       // Source badge
       row.createDiv({
         cls: `filewatch-source filewatch-source--${ev.source}`,
-        text: ev.source === "remote" ? "EXT" : "YOU",
+        text: ev.source === "remote" ? this.plugin.settings.remoteLabel : this.plugin.settings.localLabel,
         attr: { "aria-label": ev.source === "remote" ? "External / Claude" : "You" },
       });
 
@@ -233,9 +263,24 @@ export default class FileWatchPlugin extends Plugin {
   private localTouched = new Set<string>();
   private seenPaths = new Set<string>();
   private decorateTimer: number | null = null;
+  private styleEl: HTMLStyleElement | null = null;
+
+  injectThemeStyle() {
+    if (!this.styleEl) {
+      this.styleEl = document.createElement("style");
+      this.styleEl.id = "filewatch-theme";
+      document.head.appendChild(this.styleEl);
+    }
+    this.styleEl.textContent = buildThemeStyle(
+      this.settings.localColor,
+      this.settings.remoteColor,
+      this.settings.dotSize
+    );
+  }
 
   async onload() {
     await this.loadSettings();
+    this.injectThemeStyle();
 
     if (!this.settings.persistHistory) {
       this.settings.events = [];
@@ -360,7 +405,10 @@ export default class FileWatchPlugin extends Plugin {
     );
   }
 
-  onunload() {}
+  onunload() {
+    this.styleEl?.remove();
+    this.styleEl = null;
+  }
 
   // ── Event handling ──────────────────────────────────────────────────────────
 
@@ -619,7 +667,7 @@ class FileWatchSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Show dots in Files panel")
       .setDesc(
-        "Display a small colored dot next to recently changed files in the Files panel. Blue = you, purple = external."
+        "Display a small colored dot next to recently changed files in the Files panel."
       )
       .addToggle((toggle) => {
         toggle
@@ -629,6 +677,95 @@ class FileWatchSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
             this.plugin.decorateFileExplorer();
           });
+      });
+
+    // ── Appearance ──────────────────────────────────────────────────────────
+    containerEl.createEl("h3", { text: "Appearance", cls: "filewatch-settings-h3" });
+
+    new Setting(containerEl)
+      .setName('"You" label')
+      .setDesc("Text on the badge for your own changes.")
+      .addText((text) => {
+        text
+          .setPlaceholder("YOU")
+          .setValue(this.plugin.settings.localLabel)
+          .onChange(async (val) => {
+            this.plugin.settings.localLabel = val.trim() || DEFAULT_SETTINGS.localLabel;
+            await this.plugin.saveSettings();
+            this.plugin.getView()?.render();
+          });
+      });
+
+    this.addColorSetting(
+      containerEl,
+      '"You" color',
+      "Color for your own change badges and explorer dots.",
+      () => this.plugin.settings.localColor,
+      async (val) => {
+        this.plugin.settings.localColor = val;
+        await this.plugin.saveSettings();
+        this.plugin.injectThemeStyle();
+        this.plugin.getView()?.render();
+      }
+    );
+
+    new Setting(containerEl)
+      .setName('"External" label')
+      .setDesc("Text on the badge for externally-made changes.")
+      .addText((text) => {
+        text
+          .setPlaceholder("EXT")
+          .setValue(this.plugin.settings.remoteLabel)
+          .onChange(async (val) => {
+            this.plugin.settings.remoteLabel = val.trim() || DEFAULT_SETTINGS.remoteLabel;
+            await this.plugin.saveSettings();
+            this.plugin.getView()?.render();
+          });
+      });
+
+    this.addColorSetting(
+      containerEl,
+      '"External" color',
+      "Color for external change badges and explorer dots.",
+      () => this.plugin.settings.remoteColor,
+      async (val) => {
+        this.plugin.settings.remoteColor = val;
+        await this.plugin.saveSettings();
+        this.plugin.injectThemeStyle();
+        this.plugin.getView()?.render();
+      }
+    );
+
+    new Setting(containerEl)
+      .setName("Explorer dot size")
+      .setDesc("Diameter of the indicator dots in the Files panel (pixels).")
+      .addSlider((slider) => {
+        slider
+          .setLimits(4, 12, 1)
+          .setValue(this.plugin.settings.dotSize)
+          .setDynamicTooltip()
+          .onChange(async (val) => {
+            this.plugin.settings.dotSize = val;
+            await this.plugin.saveSettings();
+            this.plugin.injectThemeStyle();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("Reset appearance to defaults")
+      .setDesc("Restore default colors, dot size, and labels.")
+      .addButton((btn) => {
+        btn.setButtonText("Reset").onClick(async () => {
+          this.plugin.settings.localColor = DEFAULT_SETTINGS.localColor;
+          this.plugin.settings.remoteColor = DEFAULT_SETTINGS.remoteColor;
+          this.plugin.settings.dotSize = DEFAULT_SETTINGS.dotSize;
+          this.plugin.settings.localLabel = DEFAULT_SETTINGS.localLabel;
+          this.plugin.settings.remoteLabel = DEFAULT_SETTINGS.remoteLabel;
+          await this.plugin.saveSettings();
+          this.plugin.injectThemeStyle();
+          this.plugin.getView()?.render();
+          this.display();
+        });
       });
 
     // ── Clear button ────────────────────────────────────────────────────────
@@ -646,5 +783,28 @@ class FileWatchSettingTab extends PluginSettingTab {
             this.plugin.decorateFileExplorer();
           });
       });
+  }
+
+  private addColorSetting(
+    containerEl: HTMLElement,
+    name: string,
+    desc: string,
+    getValue: () => string,
+    onChange: (val: string) => Promise<void>
+  ): void {
+    const setting = new Setting(containerEl).setName(name).setDesc(desc);
+    const ctrl = setting.controlEl.createDiv({ cls: "filewatch-color-control" });
+
+    const swatch = ctrl.createEl("span", { cls: "filewatch-color-swatch" });
+    swatch.style.background = getValue();
+
+    const input = ctrl.createEl("input", { cls: "filewatch-color-input" });
+    input.type = "color";
+    input.value = getValue();
+    input.addEventListener("input", (e) => {
+      const val = (e.target as HTMLInputElement).value;
+      swatch.style.background = val;
+      onChange(val);
+    });
   }
 }

@@ -227,12 +227,38 @@
   background: #c35fdc;
 }
 
-.theme-dark [data-filewatch-dot="local"]::after {
-  background: #8db0f5;
+/* ── Settings appearance section ─────────────────────────────────────────── */
+.filewatch-settings-h3 {
+  margin-top: 1.5em;
+  margin-bottom: 0.25em;
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 4px;
 }
 
-.theme-dark [data-filewatch-dot="remote"]::after {
-  background: #d98cee;
+.filewatch-color-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filewatch-color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+input.filewatch-color-input {
+  width: 44px;
+  height: 28px;
+  padding: 2px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  cursor: pointer;
 }
 
 /* ── Tab pulse animation ─────────────────────────────────────────────────── */
