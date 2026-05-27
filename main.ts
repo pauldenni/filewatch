@@ -259,7 +259,8 @@ export class FileWatchView extends ItemView {
 export default class FileWatchPlugin extends Plugin {
   settings!: FileWatchSettings;
 
-  private lastWindowActiveMs = Date.now();
+  private lastBlurMs = 0;
+  private isWindowActive = document.hasFocus();
   private localTouched = new Set<string>();
   private seenPaths = new Set<string>();
   private decorateTimer: number | null = null;
@@ -297,10 +298,11 @@ export default class FileWatchPlugin extends Plugin {
 
     // Window focus tracking — used to detect remote vs local changes
     this.registerDomEvent(window, "focus", () => {
-      this.lastWindowActiveMs = Date.now();
+      this.isWindowActive = true;
     });
     this.registerDomEvent(window, "blur", () => {
-      // no-op; we just use lastWindowActiveMs as a heuristic
+      this.isWindowActive = false;
+      this.lastBlurMs = Date.now();
     });
 
     // Track files the user explicitly opens (marks as "could be local")
@@ -441,15 +443,17 @@ export default class FileWatchPlugin extends Plugin {
   }
 
   /**
-   * Heuristic: if the window hasn't been active recently AND the file wasn't
-   * opened by the user, treat it as a remote (external/Claude) change.
+   * Heuristic: if the window is currently active or lost focus within the grace
+   * period, treat the change as local. Otherwise treat it as remote (external/Claude).
    */
   private detectSource(file: TFile): "local" | "remote" {
-    const windowWasRecentlyActive =
-      Date.now() - this.lastWindowActiveMs < this.settings.remoteWindowMs;
+    const withinGracePeriod =
+      !this.isWindowActive &&
+      this.lastBlurMs > 0 &&
+      Date.now() - this.lastBlurMs < this.settings.remoteWindowMs;
     const userTouchedFile = this.localTouched.has(file.path);
 
-    if (windowWasRecentlyActive || userTouchedFile) return "local";
+    if (this.isWindowActive || withinGracePeriod || userTouchedFile) return "local";
     return "remote";
   }
 

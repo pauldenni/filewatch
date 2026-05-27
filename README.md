@@ -81,12 +81,13 @@ Obsidian's vault API fires `modify`/`create` events for **all** file changes, re
 
 File Watch uses a **window-focus heuristic**:
 
-- If the Obsidian window was **active within the last N ms** (configurable, default 2s) → change is marked **YOU (local)**
+- If the Obsidian window is **currently active** → change is marked **YOU (local)**
+- If Obsidian lost focus **within the last N ms** (configurable, default 2s) → still marked **YOU (local)** (grace period)
 - If Obsidian has been **in the background** longer than that → change is marked **EXT (external)**
 
 This works well for the Claude use case: you run a command in your terminal (Obsidian loses focus), Claude writes files, and those show up as **EXT**. When you then click back into Obsidian and save a note yourself, it shows up as **YOU**.
 
-It's a heuristic, not perfect — if you save a file within 2 seconds of alt-tabbing away, it may be miscategorised.
+It's a heuristic, not perfect — if an external tool creates a file within 2 seconds of you switching away from Obsidian, it may be marked as local.
 
 ---
 
