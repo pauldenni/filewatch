@@ -384,13 +384,13 @@ export default class FileWatchPlugin extends Plugin {
     // Settings tab
     this.addSettingTab(new FileWatchSettingTab(this.app, this));
 
-    // Open the view on first launch
+    // Ensure the view leaf exists without stealing focus from the user's active panel
     if (this.app.workspace.layoutReady) {
-      this.activateView();
+      this.ensureView();
       this.decorateFileExplorer();
     } else {
       this.app.workspace.onLayoutReady(() => {
-        this.activateView();
+        this.ensureView();
         this.decorateFileExplorer();
       });
     }
@@ -466,6 +466,14 @@ export default class FileWatchPlugin extends Plugin {
       await leaf.setViewState({ type: VIEW_TYPE, active: true });
     }
     workspace.revealLeaf(leaf);
+  }
+
+  async ensureView() {
+    const { workspace } = this.app;
+    if (workspace.getLeavesOfType(VIEW_TYPE).length === 0) {
+      const leaf = workspace.getLeftLeaf(false) ?? workspace.getLeaf(false);
+      await leaf.setViewState({ type: VIEW_TYPE, active: false });
+    }
   }
 
   getView(): FileWatchView | null {
