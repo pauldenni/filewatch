@@ -422,6 +422,13 @@ export default class FileWatchPlugin extends Plugin {
     // so each file appears only once in the list (always showing the latest change)
     const now = Date.now();
     const existing = this.settings.events.find((e) => e.path === file.path);
+    // Dot is already correctly rendered when the file has an entry, is unseen,
+    // and the source hasn't changed — skip decoration to avoid the blink.
+    const dotAlreadyCorrect =
+      existing !== undefined &&
+      !this.seenPaths.has(file.path) &&
+      existing.source === source;
+
     if (existing) {
       existing.ts = now;
       existing.kind = kind;
@@ -439,7 +446,7 @@ export default class FileWatchPlugin extends Plugin {
     this.seenPaths.delete(file.path);
     this.saveSettings();
     this.getView()?.onNewEvent(file.path);
-    this.decorateFileExplorer();
+    if (!dotAlreadyCorrect) this.decorateFileExplorer();
   }
 
   /**
