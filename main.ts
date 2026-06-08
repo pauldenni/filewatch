@@ -402,6 +402,16 @@ export default class FileWatchPlugin extends Plugin {
         }
       })
     );
+
+    // Re-sync dots when a folder is expanded/collapsed. Obsidian re-attaches
+    // (or rebuilds) child rows on toggle, so re-run the idempotent sync to keep
+    // displayed dots aligned with the recorded events. The 100ms defer in
+    // decorateFileExplorer coalesces rapid clicks and lets the DOM settle.
+    this.registerDomEvent(document, "click", (e) => {
+      if ((e.target as HTMLElement)?.closest(".nav-folder-title")) {
+        this.decorateFileExplorer();
+      }
+    });
   }
 
   onunload() {
@@ -484,18 +494,12 @@ getView(): FileWatchView | null {
   // ── File Explorer decoration ────────────────────────────────────────────────
 
   decorateFileExplorer() {
-    // Synchronously clear all dot attributes so stale indicators never linger
-    document.querySelectorAll("[data-filewatch-dot]").forEach((el) =>
-      el.removeAttribute("data-filewatch-dot")
-    );
-
     if (this.decorateTimer !== null) {
       window.clearTimeout(this.decorateTimer);
       this.decorateTimer = null;
     }
-    if (!this.settings.showExplorerDots) return;
-
-    // Defer re-addition so Obsidian's file explorer DOM settles after vault events
+    // Defer so Obsidian's file explorer DOM settles after vault events / folder
+    // toggles, then sync every item in one idempotent pass.
     this.decorateTimer = window.setTimeout(() => {
       this.decorateTimer = null;
       this.applyDots();
@@ -510,33 +514,45 @@ getView(): FileWatchView | null {
     const fileItems = explorerView.fileItems as Record<string, any> | undefined;
     if (!fileItems) return;
 
-    // Build the full set of paths to dot: each unseen file plus every ancestor folder.
-    // If a folder contains both local and remote changes, remote (purple) wins.
+    // Build the set of paths that should be dotted: each unseen file plus every
+    // ancestor folder. If a folder mixes local + remote changes, remote wins.
+    // When dots are disabled the map stays empty, so the sync below clears
+    // everything.
     const toDecorate = new Map<string, "local" | "remote">();
-    for (const ev of this.settings.events) {
-      if (this.seenPaths.has(ev.path)) continue;
-      if (!toDecorate.has(ev.path) || ev.source === "remote") {
-        toDecorate.set(ev.path, ev.source);
-      }
-      const parts = ev.path.split("/");
-      for (let i = 1; i < parts.length; i++) {
-        const folderPath = parts.slice(0, i).join("/");
-        if (!toDecorate.has(folderPath) || ev.source === "remote") {
-          toDecorate.set(folderPath, ev.source);
+    if (this.settings.showExplorerDots) {
+      for (const ev of this.settings.events) {
+        if (this.seenPaths.has(ev.path)) continue;
+        if (!toDecorate.has(ev.path) || ev.source === "remote") {
+          toDecorate.set(ev.path, ev.source);
+        }
+        const parts = ev.path.split("/");
+        for (let i = 1; i < parts.length; i++) {
+          const folderPath = parts.slice(0, i).join("/");
+          if (!toDecorate.has(folderPath) || ev.source === "remote") {
+            toDecorate.set(folderPath, ev.source);
+          }
         }
       }
     }
 
-    const decorated = new Set<HTMLElement>();
-    for (const [path, source] of toDecorate) {
+    // Sync every known explorer item against the desired state. Iterating
+    // fileItems (instead of querying the live DOM) lets us reach rows Obsidian
+    // has detached for collapsed folders — their titleEl objects persist here —
+    // so stale dots can't survive there and resurface on re-expand.
+    for (const path in fileItems) {
       const item = fileItems[path];
-      if (!item) continue;
-      const titleEl: HTMLElement | undefined = item.titleEl ?? item.selfEl ?? item.el;
-      if (!titleEl || decorated.has(titleEl)) continue;
-      decorated.add(titleEl);
-      // Using a data attribute + CSS ::after avoids child-span accumulation entirely —
-      // setting the same attribute twice just overwrites it
-      titleEl.setAttribute("data-filewatch-dot", source);
+      const titleEl: HTMLElement | undefined = item?.titleEl ?? item?.selfEl ?? item?.el;
+      if (!titleEl) continue;
+      const source = toDecorate.get(path);
+      if (source) {
+        // setAttribute is idempotent; only write when it actually changes to
+        // avoid needless style recalcs (and the dot blink).
+        if (titleEl.getAttribute("data-filewatch-dot") !== source) {
+          titleEl.setAttribute("data-filewatch-dot", source);
+        }
+      } else if (titleEl.hasAttribute("data-filewatch-dot")) {
+        titleEl.removeAttribute("data-filewatch-dot");
+      }
     }
   }
 
