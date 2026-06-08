@@ -387,9 +387,11 @@ export default class FileWatchPlugin extends Plugin {
     this.addSettingTab(new FileWatchSettingTab(this.app, this));
 
     if (this.app.workspace.layoutReady) {
+      this.ensureView();
       this.decorateFileExplorer();
     } else {
       this.app.workspace.onLayoutReady(() => {
+        this.ensureView();
         this.decorateFileExplorer();
       });
     }
@@ -486,9 +488,33 @@ export default class FileWatchPlugin extends Plugin {
     workspace.revealLeaf(leaf);
   }
 
+  /**
+   * Make sure the FileWatch leaf exists in the sidebar so its tab icon is always
+   * present — without stealing focus. Called on load/enable.
+   *
+   * Focus-safety rules (this is what the v0.4.0 startup-open got wrong):
+   *  - If a leaf already exists (Obsidian restored it from the saved layout on a
+   *    normal restart), do nothing, so we never change which panel is active.
+   *  - Create with `active: false` so the tab is added but does not become the
+   *    active sidebar panel or move editor focus.
+   *  - Never call `revealLeaf()` — that is reserved for the user clicking the
+   *    ribbon (activateView).
+   */
+  async ensureView() {
+    const { workspace } = this.app;
+    if (workspace.getLeavesOfType(VIEW_TYPE).length > 0) return;
+    const leaf = workspace.getLeftLeaf(false);
+    if (!leaf) return;
+    await leaf.setViewState({ type: VIEW_TYPE, active: false });
+  }
+
 getView(): FileWatchView | null {
     const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE)[0];
-    return leaf ? (leaf.view as FileWatchView) : null;
+    // When the leaf is created but never revealed (ensureView), Obsidian 1.7+
+    // backs it with a lightweight DeferredView placeholder rather than our real
+    // view — so guard with instanceof. Callers treat null as "no live view yet"
+    // and skip; the real view renders from settings.events once it's revealed.
+    return leaf && leaf.view instanceof FileWatchView ? leaf.view : null;
   }
 
   // ── File Explorer decoration ────────────────────────────────────────────────
