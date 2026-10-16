@@ -16,7 +16,7 @@ A sidebar panel that tracks **which files were created or modified** in your vau
 - **Appearance customization** — set your own colors for the "you" and "external" roles, adjust dot size, and rename the badge labels; changes apply instantly
 - **Tab badge** — unseen-count bubble appears on the sidebar tab when new changes arrive while you're elsewhere
 - **Tab pulse** — the tab flashes when a change is detected (can be disabled)
-- **Click to open** — click any file name to open it in the editor
+- **Click to open** — click any file name to open it in the editor; **Cmd/Ctrl+click** or **middle-click** opens it in a new tab (add **Alt** for a split, **Alt+Shift** for a new window)
 - **Clear button** — wipe the list when you're done reviewing
 - **Persistent** — list survives Obsidian restarts (stored in plugin data)
 
