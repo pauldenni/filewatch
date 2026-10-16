@@ -1,6 +1,8 @@
 import {
   App,
   ItemView,
+  Keymap,
+  PaneType,
   Plugin,
   PluginSettingTab,
   Setting,
@@ -181,12 +183,19 @@ export class FileWatchView extends ItemView {
         name.createSpan({ cls: "filewatch-folder", text: folder + "/" });
       }
       const link = name.createEl("a", { cls: "filewatch-link", text: filename });
-      link.addEventListener("click", (e) => {
+      // Cmd/Ctrl+click opens in a new tab (Obsidian's standard modifiers also
+      // apply: +Alt for a split, +Alt+Shift for a new window). Middle-click
+      // opens in a new tab too.
+      const openLink = (e: MouseEvent, newLeaf: PaneType | boolean) => {
         e.preventDefault();
         const file = this.app.vault.getAbstractFileByPath(ev.path);
         if (file instanceof TFile) {
-          this.app.workspace.getLeaf(false).openFile(file);
+          this.app.workspace.getLeaf(newLeaf).openFile(file);
         }
+      };
+      link.addEventListener("click", (e) => openLink(e, Keymap.isModEvent(e)));
+      link.addEventListener("auxclick", (e) => {
+        if (e.button === 1) openLink(e, "tab");
       });
 
       // Timestamp
