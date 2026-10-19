@@ -17,6 +17,7 @@ A sidebar panel that tracks **which files were created or modified** in your vau
 - **Tab badge** — unseen-count bubble appears on the sidebar tab when new changes arrive while you're elsewhere
 - **Tab pulse** — the tab flashes when a change is detected (can be disabled)
 - **Click to open** — click any file name to open it in the editor; **Cmd/Ctrl+click** or **middle-click** opens it in a new tab (add **Alt** for a split, **Alt+Shift** for a new window)
+- **Link-update grouping** — when Obsidian rewrites links in other notes after you move a file, those edits collapse into a single teal **LNK** row ("4 files moved → 40 notes had links updated") that expands to list the notes; can be hidden in settings
 - **Clear button** — wipe the list when you're done reviewing
 - **Persistent** — list survives Obsidian restarts (stored in plugin data)
 

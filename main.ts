@@ -25,6 +25,14 @@ interface FileEvent {
   ts: number; // epoch ms
 }
 
+/** A burst of link rewrites Obsidian made in other notes after files were moved. */
+interface LinkGroup {
+  id: number; // creation time, epoch ms
+  ts: number; // latest absorbed update, epoch ms
+  moves: { from: string; to: string }[];
+  paths: string[];
+}
+
 interface FileWatchSettings {
   trackSource: ChangeSource;
   maxEntries: number;
@@ -38,7 +46,10 @@ interface FileWatchSettings {
   dotSize: number;
   localLabel: string;
   remoteLabel: string;
+  hideLinkUpdates: boolean;
+  linkWindowMs: number; // ms after a rename in which modifies elsewhere count as link updates
   events: FileEvent[];
+  linkGroups: LinkGroup[];
 }
 
 const DEFAULT_SETTINGS: FileWatchSettings = {
@@ -54,12 +65,16 @@ const DEFAULT_SETTINGS: FileWatchSettings = {
   dotSize: 6,
   localLabel: "YOU",
   remoteLabel: "EXT",
+  hideLinkUpdates: false,
+  linkWindowMs: 2000,
   events: [],
+  linkGroups: [],
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const VIEW_TYPE = "filewatch-view";
+const MAX_LINK_GROUPS = 20;
 
 // ─── Theme helpers ────────────────────────────────────────────────────────────
 
@@ -88,6 +103,7 @@ export class FileWatchView extends ItemView {
   private listEl!: HTMLElement;
   private badgeEl: HTMLElement | null = null;
   private unseenPaths = new Set<string>();
+  private expandedGroups = new Set<number>();
 
   constructor(leaf: WorkspaceLeaf, plugin: FileWatchPlugin) {
     super(leaf);
@@ -125,6 +141,8 @@ export class FileWatchView extends ItemView {
     setIcon(clearBtn, "trash-2");
     clearBtn.addEventListener("click", async () => {
       this.plugin.settings.events = [];
+      this.plugin.settings.linkGroups = [];
+      this.expandedGroups.clear();
       await this.plugin.saveSettings();
       this.unseenPaths.clear();
       this.updateBadge();
@@ -144,8 +162,9 @@ export class FileWatchView extends ItemView {
     this.listEl.empty();
 
     const events = this.plugin.settings.events;
+    const groups = this.plugin.settings.hideLinkUpdates ? [] : this.plugin.settings.linkGroups;
 
-    if (events.length === 0) {
+    if (events.length === 0 && groups.length === 0) {
       this.listEl.createDiv({
         cls: "filewatch-empty",
         text: "No file changes recorded yet.",
@@ -153,10 +172,18 @@ export class FileWatchView extends ItemView {
       return;
     }
 
-    // Newest first
-    const sorted = [...events].sort((a, b) => b.ts - a.ts);
+    // Newest first, link-update groups interleaved by time
+    const items: { ts: number; ev?: FileEvent; group?: LinkGroup }[] = [
+      ...events.map((ev) => ({ ts: ev.ts, ev })),
+      ...groups.map((group) => ({ ts: group.ts, group })),
+    ].sort((a, b) => b.ts - a.ts);
 
-    for (const ev of sorted) {
+    for (const item of items) {
+      if (item.group) {
+        this.renderGroup(item.group);
+        continue;
+      }
+      const ev = item.ev!;
       const row = this.listEl.createDiv({ cls: "filewatch-row" });
 
       // Kind badge
@@ -206,6 +233,62 @@ export class FileWatchView extends ItemView {
           attr: { title: new Date(ev.ts).toLocaleString() },
         });
       }
+    }
+  }
+
+  /** One collapsible row for a burst of link rewrites caused by moving files */
+  private renderGroup(group: LinkGroup) {
+    const expanded = this.expandedGroups.has(group.id);
+    const row = this.listEl.createDiv({ cls: "filewatch-row filewatch-group-row" });
+
+    row.createDiv({
+      cls: "filewatch-kind filewatch-kind--link",
+      text: "LNK",
+      attr: { "aria-label": "Links updated by Obsidian after a move" },
+    });
+    row.createDiv({ cls: "filewatch-group-caret", text: expanded ? "▾" : "▸" });
+
+    const moved = group.moves.length;
+    const n = group.paths.length;
+    const label = `${moved} ${moved === 1 ? "file" : "files"} moved → ${n} ${n === 1 ? "note" : "notes"} had links updated`;
+    row.createDiv({ cls: "filewatch-name filewatch-group-label", text: label });
+
+    if (this.plugin.settings.showTimestamps) {
+      row.createDiv({
+        cls: "filewatch-ts",
+        text: this.formatTs(group.ts),
+        attr: { title: new Date(group.ts).toLocaleString() },
+      });
+    }
+
+    row.addEventListener("click", () => {
+      if (!this.expandedGroups.delete(group.id)) this.expandedGroups.add(group.id);
+      this.render();
+    });
+
+    if (!expanded) return;
+
+    const detail = this.listEl.createDiv({ cls: "filewatch-group-detail" });
+    const shown = group.moves.slice(0, 3);
+    for (const m of shown) {
+      detail.createDiv({ cls: "filewatch-group-item filewatch-group-move", text: `${m.from} → ${m.to}` });
+    }
+    if (group.moves.length > shown.length) {
+      detail.createDiv({
+        cls: "filewatch-group-item filewatch-group-move",
+        text: `…${group.moves.length - shown.length} more`,
+      });
+    }
+    for (const path of group.paths) {
+      const item = detail.createDiv({ cls: "filewatch-group-item" });
+      const link = item.createEl("a", { cls: "filewatch-link", text: path });
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        const file = this.app.vault.getAbstractFileByPath(path);
+        if (file instanceof TFile) {
+          this.app.workspace.getLeaf(Keymap.isModEvent(e)).openFile(file);
+        }
+      });
     }
   }
 
@@ -273,6 +356,11 @@ export default class FileWatchPlugin extends Plugin {
   private localTouched = new Set<string>();
   private seenPaths = new Set<string>();
   private decorateTimer: number | null = null;
+  // Link-update absorption: renames open a window in which modifies elsewhere
+  // are Obsidian rewriting links, not real edits.
+  private linkWindowUntil = 0;
+  private pendingMoves: { from: string; to: string }[] = [];
+  private activeGroup: LinkGroup | null = null;
   private styleEl: HTMLStyleElement | null = null;
 
   injectThemeStyle() {
@@ -294,6 +382,7 @@ export default class FileWatchPlugin extends Plugin {
 
     if (!this.settings.persistHistory) {
       this.settings.events = [];
+      this.settings.linkGroups = [];
       await this.saveSettings();
     }
 
@@ -340,6 +429,20 @@ export default class FileWatchPlugin extends Plugin {
       this.app.vault.on("rename", (file: TAbstractFile, oldPath: string) => {
         const oldPrefix = oldPath + "/";
         let changed = false;
+        this.noteMove(oldPath, file.path);
+        const remap = (p: string): string | null =>
+          p === oldPath
+            ? file.path
+            : p.startsWith(oldPrefix)
+            ? file.path + "/" + p.slice(oldPrefix.length)
+            : null;
+        for (const g of this.settings.linkGroups) {
+          g.paths = g.paths.map((p) => {
+            const np = remap(p);
+            if (np) changed = true;
+            return np ?? p;
+          });
+        }
         for (const ev of this.settings.events) {
           if (ev.path === oldPath) {
             ev.path = file.path;
@@ -374,7 +477,16 @@ export default class FileWatchPlugin extends Plugin {
         for (const p of [...this.seenPaths]) {
           if (p === file.path || p.startsWith(pathPrefix)) this.seenPaths.delete(p);
         }
-        if (this.settings.events.length !== before) {
+        let groupsChanged = false;
+        for (const g of this.settings.linkGroups) {
+          const n = g.paths.length;
+          g.paths = g.paths.filter((p) => p !== file.path && !p.startsWith(pathPrefix));
+          if (g.paths.length !== n) groupsChanged = true;
+        }
+        if (groupsChanged) {
+          this.settings.linkGroups = this.settings.linkGroups.filter((g) => g.paths.length > 0);
+        }
+        if (this.settings.events.length !== before || groupsChanged) {
           this.saveSettings();
           this.getView()?.render();
           this.decorateFileExplorer();
@@ -432,7 +544,48 @@ export default class FileWatchPlugin extends Plugin {
 
   // ── Event handling ──────────────────────────────────────────────────────────
 
+  /** Record a move and (re)open the window in which link rewrites are expected */
+  private noteMove(from: string, to: string) {
+    const now = Date.now();
+    if (now >= this.linkWindowUntil) {
+      this.pendingMoves = [];
+      this.activeGroup = null;
+    }
+    this.linkWindowUntil = now + this.settings.linkWindowMs;
+    const move = { from, to };
+    if (this.activeGroup) this.activeGroup.moves.push(move);
+    else this.pendingMoves.push(move);
+  }
+
+  /** True if this modify is Obsidian rewriting links after a move; records it in a group */
+  private absorbLinkUpdate(file: TFile): boolean {
+    const now = Date.now();
+    if (now >= this.linkWindowUntil) return false;
+    // The moved files themselves are not link rewrites
+    const moves = this.activeGroup ? this.activeGroup.moves : this.pendingMoves;
+    if (moves.some((m) => file.path === m.to || file.path.startsWith(m.to + "/"))) return false;
+
+    let group = this.activeGroup;
+    if (!group) {
+      group = { id: now, ts: now, moves: [...this.pendingMoves], paths: [] };
+      this.activeGroup = group;
+      this.settings.linkGroups.unshift(group);
+      if (this.settings.linkGroups.length > MAX_LINK_GROUPS) {
+        this.settings.linkGroups = this.settings.linkGroups.slice(0, MAX_LINK_GROUPS);
+      }
+    }
+    if (!group.paths.includes(file.path)) group.paths.push(file.path);
+    group.ts = now;
+    // Slide the window so a long burst stays in one group
+    this.linkWindowUntil = now + this.settings.linkWindowMs;
+    this.saveSettings();
+    this.getView()?.render();
+    return true;
+  }
+
   private handleEvent(file: TFile, kind: ChangeKind) {
+    if (kind === "modified" && this.absorbLinkUpdate(file)) return;
+
     const source = this.detectSource(file);
 
     const { trackSource } = this.settings;
@@ -702,6 +855,40 @@ class FileWatchSettingTab extends PluginSettingTab {
             const parsed = parseInt(val);
             if (!isNaN(parsed) && parsed >= 0) {
               this.plugin.settings.remoteWindowMs = parsed;
+              await this.plugin.saveSettings();
+            }
+          });
+      });
+
+    // ── Link updates ────────────────────────────────────────────────────────
+    new Setting(containerEl)
+      .setName("Hide link-update groups")
+      .setDesc(
+        "When Obsidian rewrites links in other notes after you move a file, those edits are grouped into a single LNK row. Turn this on to hide those rows entirely."
+      )
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.hideLinkUpdates)
+          .onChange(async (val) => {
+            this.plugin.settings.hideLinkUpdates = val;
+            await this.plugin.saveSettings();
+            this.plugin.getView()?.render();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("Link-update window (ms)")
+      .setDesc(
+        "Modifies to other files within this long after a move (extended by each one) are counted as link updates. Default 2000."
+      )
+      .addText((text) => {
+        text
+          .setPlaceholder("2000")
+          .setValue(String(this.plugin.settings.linkWindowMs))
+          .onChange(async (val) => {
+            const parsed = parseInt(val);
+            if (!isNaN(parsed) && parsed >= 0) {
+              this.plugin.settings.linkWindowMs = parsed;
               await this.plugin.saveSettings();
             }
           });
