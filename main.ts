@@ -46,6 +46,8 @@ interface FileWatchSettings {
   dotSize: number;
   localLabel: string;
   remoteLabel: string;
+  showKindBadge: boolean;
+  showSourceBadge: boolean;
   hideLinkUpdates: boolean;
   linkWindowMs: number; // ms after a rename in which modifies elsewhere count as link updates
   events: FileEvent[];
@@ -65,6 +67,8 @@ const DEFAULT_SETTINGS: FileWatchSettings = {
   dotSize: 6,
   localLabel: "YOU",
   remoteLabel: "EXT",
+  showKindBadge: true,
+  showSourceBadge: true,
   hideLinkUpdates: false,
   linkWindowMs: 2000,
   events: [],
@@ -184,21 +188,32 @@ export class FileWatchView extends ItemView {
         continue;
       }
       const ev = item.ev!;
+      const { showKindBadge, showSourceBadge } = this.plugin.settings;
       const row = this.listEl.createDiv({ cls: "filewatch-row" });
+      row.style.gridTemplateColumns = [
+        showKindBadge ? "36px" : "",
+        showSourceBadge ? "36px" : "",
+        "1fr",
+        "auto",
+      ].filter(Boolean).join(" ");
 
       // Kind badge
-      const kindBadge = row.createDiv({
-        cls: `filewatch-kind filewatch-kind--${ev.kind}`,
-        text: ev.kind === "created" ? "NEW" : "MOD",
-        attr: { "aria-label": ev.kind === "created" ? "New file created" : "File modified" },
-      });
+      if (showKindBadge) {
+        row.createDiv({
+          cls: `filewatch-kind filewatch-kind--${ev.kind}`,
+          text: ev.kind === "created" ? "NEW" : "MOD",
+          attr: { "aria-label": ev.kind === "created" ? "New file created" : "File modified" },
+        });
+      }
 
       // Source badge
-      row.createDiv({
-        cls: `filewatch-source filewatch-source--${ev.source}`,
-        text: ev.source === "remote" ? this.plugin.settings.remoteLabel : this.plugin.settings.localLabel,
-        attr: { "aria-label": ev.source === "remote" ? "External / Claude" : "You" },
-      });
+      if (showSourceBadge) {
+        row.createDiv({
+          cls: `filewatch-source filewatch-source--${ev.source}`,
+          text: ev.source === "remote" ? this.plugin.settings.remoteLabel : this.plugin.settings.localLabel,
+          attr: { "aria-label": ev.source === "remote" ? "External / Claude" : "You" },
+        });
+      }
 
       // File name (clickable)
       const name = row.createDiv({ cls: "filewatch-name" });
@@ -239,13 +254,19 @@ export class FileWatchView extends ItemView {
   /** One collapsible row for a burst of link rewrites caused by moving files */
   private renderGroup(group: LinkGroup) {
     const expanded = this.expandedGroups.has(group.id);
+    const { showKindBadge } = this.plugin.settings;
     const row = this.listEl.createDiv({ cls: "filewatch-row filewatch-group-row" });
+    row.style.gridTemplateColumns = [showKindBadge ? "36px" : "", "14px", "1fr", "auto"]
+      .filter(Boolean)
+      .join(" ");
 
-    row.createDiv({
-      cls: "filewatch-kind filewatch-kind--link",
-      text: "LNK",
-      attr: { "aria-label": "Links updated by Obsidian after a move" },
-    });
+    if (showKindBadge) {
+      row.createDiv({
+        cls: "filewatch-kind filewatch-kind--link",
+        text: "LNK",
+        attr: { "aria-label": "Links updated by Obsidian after a move" },
+      });
+    }
     row.createDiv({ cls: "filewatch-group-caret", text: expanded ? "▾" : "▸" });
 
     const moved = group.moves.length;
@@ -927,6 +948,32 @@ class FileWatchSettingTab extends PluginSettingTab {
 
     // ── Appearance ──────────────────────────────────────────────────────────
     containerEl.createEl("h3", { text: "Appearance", cls: "filewatch-settings-h3" });
+
+    new Setting(containerEl)
+      .setName("Show NEW / MOD badges")
+      .setDesc("Show the NEW / MOD kind badge (and LNK on link-update groups) on each row.")
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.showKindBadge)
+          .onChange(async (val) => {
+            this.plugin.settings.showKindBadge = val;
+            await this.plugin.saveSettings();
+            this.plugin.getView()?.render();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("Show YOU / EXT badges")
+      .setDesc("Show the source badge on each row. Explorer dots keep their colors either way.")
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.showSourceBadge)
+          .onChange(async (val) => {
+            this.plugin.settings.showSourceBadge = val;
+            await this.plugin.saveSettings();
+            this.plugin.getView()?.render();
+          });
+      });
 
     new Setting(containerEl)
       .setName('"You" label')
